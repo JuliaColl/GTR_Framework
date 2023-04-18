@@ -18,6 +18,17 @@ namespace SCN {
 	class Prefab;
 	class Material;
 
+	class RenderCall {
+	public:
+		GFX::Mesh* mesh;
+		SCN::Material* material;
+		Matrix44 model;
+
+		float distance_to_camera;
+		static bool CompareDistance(RenderCall rc1, RenderCall rc2);
+
+	};
+
 	// This class is in charge of rendering anything in our system.
 	// Separating the render from anything else makes the code cleaner
 	class Renderer
@@ -29,6 +40,9 @@ namespace SCN {
 		GFX::Texture* skybox_cubemap;
 
 		SCN::Scene* scene;
+
+		std::vector<RenderCall> render_calls; //to store the nodes by sort them by distance
+
 
 		//updated every frame
 		Renderer(const char* shaders_atlas_filename );

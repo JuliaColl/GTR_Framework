@@ -23,6 +23,12 @@ using namespace SCN;
 //some globals
 GFX::Mesh sphere;
 
+bool SCN::RenderCall::CompareDistance(RenderCall rc1, RenderCall rc2)
+{
+	return (rc1.distance_to_camera < rc2.distance_to_camera);
+}
+
+
 Renderer::Renderer(const char* shader_atlas_filename)
 {
 	render_wireframe = false;
@@ -64,6 +70,7 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 	if(skybox_cubemap)
 		renderSkybox(skybox_cubemap);
 
+	render_calls.clear();
 	//render entities
 	for (int i = 0; i < scene->entities.size(); ++i)
 	{
@@ -78,6 +85,13 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 			if (pent->prefab)
 				renderNode( &pent->root, camera);
 		}
+	}
+
+	
+	std::sort(render_calls.begin(), render_calls.end(), SCN::RenderCall::CompareDistance);
+	
+	for (int i = 0; i < render_calls.size(); i++) {
+		renderMeshWithMaterial(render_calls[i].model, render_calls[i].mesh, render_calls[i].material);
 	}
 }
 
@@ -129,7 +143,16 @@ void Renderer::renderNode(SCN::Node* node, Camera* camera)
 		{
 			if(render_boundaries)
 				node->mesh->renderBounding(node_model, true);
-			renderMeshWithMaterial(node_model, node->mesh, node->material);
+			
+			//instead of render, we store it
+			//renderMeshWithMaterial(node_model, node->mesh, node->material);
+			SCN::RenderCall rc;
+			Vector3f nodepos = node_model.getTranslation();
+			rc.mesh = node->mesh;
+			rc.material = node->material;
+			rc.model = node_model;
+			rc.distance_to_camera = camera->eye.distance(nodepos);
+			render_calls.push_back(rc);
 		}
 	}
 
@@ -235,3 +258,4 @@ void Renderer::showUI()
 #else
 void Renderer::showUI() {}
 #endif
+
