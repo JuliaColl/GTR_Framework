@@ -63,6 +63,21 @@ void Application::render(void)
 	//set the camera as default (used by some functions in the framework)
 	camera->enable();
 
+	 /*
+	// Render single mesh
+	GFX::Mesh m;
+	m.vertices.push_back(vec3(-5, 5, 0));
+
+	GFX::Shader* shader = GFX::Shader::getDefaultShader("flat");
+	shader->enable();
+	shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
+	shader->setUniform("u_model", Matrix44());
+	shader->setUniform("u_color", vec4(1, 0, 0, 1));
+	m.render(GL_POINTS);
+	
+	shader->disable();
+	*/
+
 	//render the whole scene
 	renderer->renderScene(scene, camera);
 	
