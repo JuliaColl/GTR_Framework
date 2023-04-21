@@ -1,6 +1,7 @@
 //example of some shaders compiled
 flat basic.vs flat.fs
 texture basic.vs texture.fs
+light basic.vs light.fs
 skybox basic.vs skybox.fs
 depth quad.vs depth.fs
 multi basic.vs multi.fs
@@ -105,6 +106,77 @@ void main()
 	FragColor = color;
 }
 
+\light.fs
+
+#version 330 core
+
+in vec3 v_position;
+in vec3 v_world_position;
+in vec3 v_normal;
+in vec2 v_uv;
+in vec4 v_color;
+
+//material properties
+uniform vec4 u_color;
+uniform vec3 u_emissive_factor;
+uniform sampler2D u_emissive_texture;
+uniform sampler2D u_albedo_texture;
+
+//global properties
+uniform float u_time;
+uniform float u_alpha_cutoff;
+
+//lights
+uniform vec3 u_ambient_light;
+uniform vec4 u_light_info; // (light_type, near_distance, far_distance, xxx);
+uniform vec3 u_ligth_position;
+uniform vec3 u_ligth_front;
+uniform vec3 u_ligth_color;
+
+#define NOLIGHT 0
+#define POINT_LIGHT 1
+#define SPOT_LIGHT 2
+#define DIRECTIONAL_LIGHT 3
+
+out vec4 FragColor;
+
+void main()
+{
+	vec2 uv = v_uv;
+	vec4 albedo = u_color;
+	albedo *= texture( u_albedo_texture, v_uv );
+
+	if(albedo.a < u_alpha_cutoff)
+		discard;
+
+	vec3 N = normalize( v_normal );
+
+	vec3 light = vec3(0.0);
+	light += u_ambient_light;
+
+	
+	if( int(u_light_info.x) == POINT_LIGHT)
+	{
+		vec3 L = u_ligth_position - v_world_position;
+		float dist = length(L);
+		L /= dist; //normilize vector L
+
+		float Ndot = dot(N,L);
+		float att = (u_light_info.z - dist) / u_light_info.z;
+		att = max(att, 0.0);
+		light += max( Ndot, 0.0 ) * u_ligth_color * att;
+	}
+	else if( int(u_light_info.x) == DIRECTIONAL_LIGHT)
+	{
+		float Ndot = dot(N,u_ligth_front);
+		light += max( Ndot, 0.0 ) * u_ligth_color;
+	}
+
+	
+	vec3 color = albedo.xyz * light;
+	color += u_emissive_factor * texture(u_emissive_texture, v_uv).xyz;
+	FragColor = vec4( color, albedo.a );
+}
 
 \skybox.fs
 

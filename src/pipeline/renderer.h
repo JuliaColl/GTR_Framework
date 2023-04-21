@@ -29,6 +29,11 @@ namespace SCN {
 
 	};
 
+	enum eRenderMode{
+		FLAT,
+		LIGHTS
+	};
+
 	// This class is in charge of rendering anything in our system.
 	// Separating the render from anything else makes the code cleaner
 	class Renderer
@@ -36,6 +41,7 @@ namespace SCN {
 	public:
 		bool render_wireframe;
 		bool render_boundaries;
+		eRenderMode render_mode;
 
 		GFX::Texture* skybox_cubemap;
 
@@ -43,6 +49,8 @@ namespace SCN {
 
 		std::vector<RenderCall> render_calls; //to store the nodes by sort them by distance
 
+		std::vector<LightEntity*> lights;
+		std::vector<LightEntity*> visibleLights;
 
 		//updated every frame
 		Renderer(const char* shaders_atlas_filename );
@@ -64,6 +72,7 @@ namespace SCN {
 
 		//to render one mesh given its material and transformation matrix
 		void renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
+		void renderMeshWithMaterialLight(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
 
 		void showUI();
 
