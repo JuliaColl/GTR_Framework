@@ -129,9 +129,9 @@ uniform float u_alpha_cutoff;
 //lights
 uniform vec3 u_ambient_light;
 uniform vec4 u_light_info; // (light_type, near_distance, far_distance, xxx);
-uniform vec3 u_ligth_position;
-uniform vec3 u_ligth_front;
-uniform vec3 u_ligth_color;
+uniform vec3 u_light_position;
+uniform vec3 u_light_front;
+uniform vec3 u_light_color;
 
 #define NOLIGHT 0
 #define POINT_LIGHT 1
@@ -157,19 +157,19 @@ void main()
 	
 	if( int(u_light_info.x) == POINT_LIGHT)
 	{
-		vec3 L = u_ligth_position - v_world_position;
+		vec3 L = u_light_position - v_world_position;
 		float dist = length(L);
 		L /= dist; //normilize vector L
 
 		float Ndot = dot(N,L);
 		float att = (u_light_info.z - dist) / u_light_info.z;
 		att = max(att, 0.0);
-		light += max( Ndot, 0.0 ) * u_ligth_color * att;
+		light += max( Ndot, 0.0 ) * u_light_color * att;
 	}
 	else if( int(u_light_info.x) == DIRECTIONAL_LIGHT)
 	{
-		float Ndot = dot(N,u_ligth_front);
-		light += max( Ndot, 0.0 ) * u_ligth_color;
+		float Ndot = dot(N,u_light_front);
+		light += max( Ndot, 0.0 ) * u_light_color;
 	}
 
 	

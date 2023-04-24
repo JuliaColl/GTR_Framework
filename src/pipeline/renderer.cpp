@@ -352,9 +352,9 @@ void SCN::Renderer::renderMeshWithMaterialLight(const Matrix44 model, GFX::Mesh*
 		for (int i = 0; i < lights.size(); i++) 
 		{
 			LightEntity* light = lights[i];
-			shader->setUniform("u_ligth_position", light->root.model.getTranslation());
-			shader->setUniform("u_ligth_front", light->root.model.rotateVector(vec3(0,0,1)) ); //we pass the forward vector  
-			shader->setUniform("u_ligth_color", light->color * light->intensity);
+			shader->setUniform("u_light_position", light->root.model.getTranslation());
+			shader->setUniform("u_light_front", light->root.model.rotateVector(vec3(0,0,1)) ); //we pass the forward vector  
+			shader->setUniform("u_light_color", light->color * light->intensity);
 			//shader->setUniform("u_light_type", (int)light->light_type);
 			//shader->setUniform("u_light_max_distance", light->max_distance);
 			shader->setUniform("u_light_info",vec4((int)light->light_type, light->near_distance, light->max_distance, 0));
