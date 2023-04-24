@@ -359,8 +359,8 @@ void SCN::Renderer::renderMeshWithMaterialLight(const Matrix44 model, GFX::Mesh*
 			//shader->setUniform("u_light_max_distance", light->max_distance);
 			shader->setUniform("u_light_info",vec4((int)light->light_type, light->near_distance, light->max_distance, 0));
 
-			if (light->light_type != eLightType::POINT && light->light_type != eLightType::DIRECTIONAL)
-				continue;
+			if (light->light_type == eLightType::SPOT )
+				shader->setUniform("u_light_cone", vec2( cos( light->cone_info.x * DEG2RAD ), cos(light->cone_info.y * DEG2RAD)));
 
 			//do the draw call that renders the mesh into the screen
 			mesh->render(GL_TRIANGLES);

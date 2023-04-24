@@ -132,6 +132,7 @@ uniform vec4 u_light_info; // (light_type, near_distance, far_distance, xxx);
 uniform vec3 u_light_position;
 uniform vec3 u_light_front;
 uniform vec3 u_light_color;
+uniform vec2 u_light_cone; // ( cos(min_angle), cos(max_angle) s)
 
 #define NOLIGHT 0
 #define POINT_LIGHT 1
@@ -155,7 +156,7 @@ void main()
 	light += u_ambient_light;
 
 	
-	if( int(u_light_info.x) == POINT_LIGHT)
+	if( int(u_light_info.x) == POINT_LIGHT || int(u_light_info.x) == SPOT_LIGHT)
 	{
 		vec3 L = u_light_position - v_world_position;
 		float dist = length(L);
@@ -164,6 +165,16 @@ void main()
 		float Ndot = dot(N,L);
 		float att = (u_light_info.z - dist) / u_light_info.z;
 		att = max(att, 0.0);
+
+		if (int(u_light_info.x) == SPOT_LIGHT)
+		{
+			float cos_angle = dot( u_light_front, L);
+			if ( cos_angle < u_light_cone.y)
+				att = 0.0;
+			else if ( cos_angle < u_light_cone.x)
+				att *= 1.0 - (cos_angle - u_light_cone.x) / ( u_light_cone.y - u_light_cone.x);
+		}
+
 		light += max( Ndot, 0.0 ) * u_light_color * att;
 	}
 	else if( int(u_light_info.x) == DIRECTIONAL_LIGHT)
