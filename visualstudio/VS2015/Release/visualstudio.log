@@ -2,23 +2,40 @@
 C:\Users\Júlia Coll\OneDrive\Documentos\Uni\4t\GTR\GTR_Framework\src\extra\cJSON.h(104,1): warning C4099: 'cJSON': nombre de tipo visto anteriormente usando 'class' ahora se ve usando 'struct'
 C:\Users\Júlia Coll\OneDrive\Documentos\Uni\4t\GTR\GTR_Framework\src\extra\cJSON.h(103): message : vea la declaración de 'cJSON'
 C:\Users\Júlia Coll\OneDrive\Documentos\Uni\4t\GTR\GTR_Framework\src\pipeline\renderer.cpp(56,20): warning C4018: '<': no coinciden signed/unsigned
-C:\Users\Júlia Coll\OneDrive\Documentos\Uni\4t\GTR\GTR_Framework\src\pipeline\renderer.cpp(98,20): warning C4018: '<': no coinciden signed/unsigned
-C:\Users\Júlia Coll\OneDrive\Documentos\Uni\4t\GTR\GTR_Framework\src\pipeline\renderer.cpp(116,20): warning C4018: '<': no coinciden signed/unsigned
-C:\Users\Júlia Coll\OneDrive\Documentos\Uni\4t\GTR\GTR_Framework\src\pipeline\renderer.cpp(188,20): warning C4018: '<': no coinciden signed/unsigned
-C:\Users\Júlia Coll\OneDrive\Documentos\Uni\4t\GTR\GTR_Framework\src\pipeline\renderer.cpp(244,10): warning C4244: 'inicializando': conversión de 'long' a 'float'; posible pérdida de datos
-C:\Users\Júlia Coll\OneDrive\Documentos\Uni\4t\GTR\GTR_Framework\src\pipeline\renderer.cpp(321,10): warning C4244: 'inicializando': conversión de 'long' a 'float'; posible pérdida de datos
-C:\Users\Júlia Coll\OneDrive\Documentos\Uni\4t\GTR\GTR_Framework\src\pipeline\renderer.cpp(352,21): warning C4018: '<': no coinciden signed/unsigned
-C:\Users\Júlia Coll\OneDrive\Documentos\Uni\4t\GTR\GTR_Framework\src\pipeline\renderer.cpp(360,53): warning C4244: 'argumento': conversión de 'int' a 'T'; posible pérdida de datos
+C:\Users\Júlia Coll\OneDrive\Documentos\Uni\4t\GTR\GTR_Framework\src\pipeline\renderer.cpp(97,20): warning C4018: '<': no coinciden signed/unsigned
+C:\Users\Júlia Coll\OneDrive\Documentos\Uni\4t\GTR\GTR_Framework\src\pipeline\renderer.cpp(115,20): warning C4018: '<': no coinciden signed/unsigned
+C:\Users\Júlia Coll\OneDrive\Documentos\Uni\4t\GTR\GTR_Framework\src\pipeline\renderer.cpp(187,20): warning C4018: '<': no coinciden signed/unsigned
+C:\Users\Júlia Coll\OneDrive\Documentos\Uni\4t\GTR\GTR_Framework\src\pipeline\renderer.cpp(243,10): warning C4244: 'inicializando': conversión de 'long' a 'float'; posible pérdida de datos
+C:\Users\Júlia Coll\OneDrive\Documentos\Uni\4t\GTR\GTR_Framework\src\pipeline\renderer.cpp(320,10): warning C4244: 'inicializando': conversión de 'long' a 'float'; posible pérdida de datos
+C:\Users\Júlia Coll\OneDrive\Documentos\Uni\4t\GTR\GTR_Framework\src\pipeline\renderer.cpp(351,21): warning C4018: '<': no coinciden signed/unsigned
+C:\Users\Júlia Coll\OneDrive\Documentos\Uni\4t\GTR\GTR_Framework\src\pipeline\renderer.cpp(359,53): warning C4244: 'argumento': conversión de 'int' a 'T'; posible pérdida de datos
           with
           [
               T=float
           ]
-C:\Users\Júlia Coll\OneDrive\Documentos\Uni\4t\GTR\GTR_Framework\src\pipeline\renderer.cpp(363,86): warning C4244: 'argumento': conversión de 'double' a 'T'; posible pérdida de datos
+C:\Users\Júlia Coll\OneDrive\Documentos\Uni\4t\GTR\GTR_Framework\src\pipeline\renderer.cpp(362,86): warning C4244: 'argumento': conversión de 'double' a 'T'; posible pérdida de datos
           with
           [
               T=float
           ]
-C:\Users\Júlia Coll\OneDrive\Documentos\Uni\4t\GTR\GTR_Framework\src\pipeline\renderer.cpp(363,49): warning C4244: 'argumento': conversión de 'double' a 'T'; posible pérdida de datos
+C:\Users\Júlia Coll\OneDrive\Documentos\Uni\4t\GTR\GTR_Framework\src\pipeline\renderer.cpp(362,49): warning C4244: 'argumento': conversión de 'double' a 'T'; posible pérdida de datos
+          with
+          [
+              T=float
+          ]
+C:\Users\Júlia Coll\OneDrive\Documentos\Uni\4t\GTR\GTR_Framework\src\pipeline\renderer.cpp(442,10): warning C4244: 'inicializando': conversión de 'long' a 'float'; posible pérdida de datos
+C:\Users\Júlia Coll\OneDrive\Documentos\Uni\4t\GTR\GTR_Framework\src\pipeline\renderer.cpp(463,20): warning C4018: '<': no coinciden signed/unsigned
+C:\Users\Júlia Coll\OneDrive\Documentos\Uni\4t\GTR\GTR_Framework\src\pipeline\renderer.cpp(468,34): warning C4244: 'argumento': conversión de 'int' a 'T'; posible pérdida de datos
+          with
+          [
+              T=float
+          ]
+C:\Users\Júlia Coll\OneDrive\Documentos\Uni\4t\GTR\GTR_Framework\src\pipeline\renderer.cpp(470,63): warning C4244: 'argumento': conversión de 'double' a 'T'; posible pérdida de datos
+          with
+          [
+              T=float
+          ]
+C:\Users\Júlia Coll\OneDrive\Documentos\Uni\4t\GTR\GTR_Framework\src\pipeline\renderer.cpp(470,28): warning C4244: 'argumento': conversión de 'double' a 'T'; posible pérdida de datos
           with
           [
               T=float
@@ -26,9 +43,8 @@ C:\Users\Júlia Coll\OneDrive\Documentos\Uni\4t\GTR\GTR_Framework\src\pipeline\r
      Creando biblioteca ..\..\GTR.lib y objeto ..\..\GTR.exp
 LINK : warning LNK4098: la biblioteca predeterminada'LIBCMT' entra en conflicto con otras bibliotecas; use la biblioteca /NODEFAULTLIB:biblioteca
   Generando código
-  0 of 5942 functions ( 0.0%) were compiled, the rest were copied from previous compilation.
-    0 functions were new in current compilation
-    0 functions had inline decision re-evaluated but remain unchanged
+  Previous IPDB and IOBJ mismatch, fall back to full compilation.
+  All 5945 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
   Generación de código finalizada
 glew32s.lib(glew.obj) : warning LNK4099: no se encontró PDB 'vc120.pdb' con 'glew32s.lib(glew.obj)' o en 'C:\Users\Júlia Coll\OneDrive\Documentos\Uni\4t\GTR\GTR_Framework\vc120.pdb'; se vinculará el objeto sin tener en cuenta información de depuración
   visualstudio.vcxproj -> C:\Users\Júlia Coll\OneDrive\Documentos\Uni\4t\GTR\GTR_Framework\GTR.exe

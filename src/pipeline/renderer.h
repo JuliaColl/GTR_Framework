@@ -4,6 +4,7 @@
 
 #include "light.h"
 
+#define MAX_LIGHTS 4
 //forward declarations
 class Camera;
 class Skeleton;
@@ -31,7 +32,8 @@ namespace SCN {
 
 	enum eRenderMode{
 		FLAT,
-		LIGHTS
+		MULTIPASS,
+		SINGLEPASS
 	};
 
 	// This class is in charge of rendering anything in our system.
@@ -72,7 +74,8 @@ namespace SCN {
 
 		//to render one mesh given its material and transformation matrix
 		void renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
-		void renderMeshWithMaterialLight(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
+		void renderMeshWithMaterialMultiPass(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
+		void renderMeshWithMaterialSinglePass(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
 
 		void showUI();
 
