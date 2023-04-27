@@ -23,9 +23,13 @@ using namespace SCN;
 //some globals
 GFX::Mesh sphere;
 
-bool SCN::RenderCall::CompareDistance(RenderCall rc1, RenderCall rc2)
+bool SCN::RenderCall::CompareAlphaAndDistance(RenderCall rc1, RenderCall rc2)
 {
-	return (rc1.distance_to_camera < rc2.distance_to_camera);
+	if (rc1.material->alpha_mode == eAlphaMode::NO_ALPHA && rc2.material->alpha_mode != eAlphaMode::NO_ALPHA)
+		return true;
+	else if (rc2.material->alpha_mode == eAlphaMode::NO_ALPHA && rc1.material->alpha_mode != eAlphaMode::NO_ALPHA)
+		return false;
+	return (rc1.distance_to_camera > rc2.distance_to_camera);
 }
 
 
@@ -110,7 +114,7 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 	}
 
 	
-	std::sort(render_calls.begin(), render_calls.end(), SCN::RenderCall::CompareDistance);
+	std::sort(render_calls.begin(), render_calls.end(), SCN::RenderCall::CompareAlphaAndDistance);
 	
 	for (int i = 0; i < render_calls.size(); i++) {
 		switch (render_mode)

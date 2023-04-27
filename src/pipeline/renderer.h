@@ -26,7 +26,7 @@ namespace SCN {
 		Matrix44 model;
 
 		float distance_to_camera;
-		static bool CompareDistance(RenderCall rc1, RenderCall rc2);
+		static bool CompareAlphaAndDistance(RenderCall rc1, RenderCall rc2);
 
 	};
 
