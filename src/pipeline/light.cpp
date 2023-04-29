@@ -5,7 +5,6 @@
 
 SCN::LightEntity::LightEntity()
 {
-	memset(&light_data, 0, sizeof(sLightData));
 	light_type = eLightType::POINT;
 	color.set(1, 1, 1);
 	cone_info.set(25, 40);
@@ -15,7 +14,17 @@ SCN::LightEntity::LightEntity()
 	shadow_bias = 0.001;
 	near_distance = 0.1;
 	area = 1000;
+	shadowmap_fbo = nullptr;
+	shadowmap = nullptr;
 }
+
+SCN::LightEntity::~LightEntity() 
+{
+	if (shadowmap_fbo) {
+		delete shadowmap_fbo;
+	}
+}
+
 
 void SCN::LightEntity::configure(cJSON* json)
 {

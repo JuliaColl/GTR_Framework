@@ -43,6 +43,7 @@ namespace SCN {
 	public:
 		bool render_wireframe;
 		bool render_boundaries;
+		bool show_shadowmaps;
 		eRenderMode render_mode;
 
 		GFX::Texture* skybox_cubemap;
@@ -58,24 +59,31 @@ namespace SCN {
 		Renderer(const char* shaders_atlas_filename );
 
 		//just to be sure we have everything ready for the rendering
-		void setupScene();
+		void setupScene(Camera* camera);
 
 		//add here your functions
 		//...
 
 		//renders several elements of the scene
 		void renderScene(SCN::Scene* scene, Camera* camera);
+		void renderFrameCall(SCN::Scene* scene, Camera* camera);
+		void renderFrame(SCN::Scene* scene, Camera* camera);
+
 
 		//render the skybox
 		void renderSkybox(GFX::Texture* cubemap);
 	
 		//to render one node from the prefab and its children
 		void renderNode(SCN::Node* node, Camera* camera);
+		void storeNode(SCN::Node* node, Camera* camera);
 
 		//to render one mesh given its material and transformation matrix
 		void renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
 		void renderMeshWithMaterialMultiPass(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
 		void renderMeshWithMaterialSinglePass(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
+
+		void generateShadowmaps();
+		void debugShadowmaps(); 
 
 		void showUI();
 

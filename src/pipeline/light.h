@@ -1,6 +1,7 @@
 #pragma once
 
 #include "scene.h"
+#include "../gfx/fbo.h"
 
 namespace SCN {
 
@@ -10,19 +11,6 @@ namespace SCN {
 		SPOT = 2,
 		DIRECTIONAL = 3
 	};
-
-	//internal shader data (16 bits aligned)
-	//#pragma pack(push, 16)
-	struct sLightData {
-		vec4 position; //pos,max_distance
-		vec4 color; //(max_distance,attenuation)
-		vec4 params; //type, SPOT=(,min_angle, max_angle)
-		vec4 front;
-		vec4 shadow_params; //cast_shadows, bias, ...
-		vec4 shadow_area; //start, end inside atlas
-		mat4 shadowmap_vp;
-	};
-	//#pragma pack(pop)
 
 	class LightEntity : public BaseEntity
 	{
@@ -35,15 +23,18 @@ namespace SCN {
 		float max_distance;
 		bool cast_shadows;
 		float shadow_bias;
-		vec2 cone_info;
+		vec2 cone_info;  // min, max
 		float area; //for direct;
 
-		sLightData light_data; //for internal 
-		//Texture* cookie;
+		//rendering
+		GFX::FBO* shadowmap_fbo;
+		GFX::Texture* shadowmap;
+		mat4 shadow_viewproj;
 
 		ENTITY_METHODS(LightEntity, LIGHT, 14,4);
 
 		LightEntity();
+		~LightEntity();
 
 		void configure(cJSON* json);
 		void serialize(cJSON* json);

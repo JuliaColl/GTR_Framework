@@ -37,6 +37,7 @@ Renderer::Renderer(const char* shader_atlas_filename)
 {
 	render_wireframe = false;
 	render_boundaries = false;
+	show_shadowmaps = false;
 	render_mode = eRenderMode::SINGLEPASS;
 	scene = nullptr;
 	skybox_cubemap = nullptr;
@@ -48,13 +49,14 @@ Renderer::Renderer(const char* shader_atlas_filename)
 	sphere.createSphere(1.0f);
 }
 
-void Renderer::setupScene()
+void Renderer::setupScene(Camera* camera)
 {
 	if (scene->skybox_filename.size())
 		skybox_cubemap = GFX::Texture::Get(std::string(scene->base_folder + "/" + scene->skybox_filename).c_str());
 	else
 		skybox_cubemap = nullptr;
 
+	render_calls.clear();
 	lights.clear();
 	//process entities
 	for (int i = 0; i < scene->entities.size(); ++i)
@@ -67,6 +69,8 @@ void Renderer::setupScene()
 		if (ent->getType() == eEntityType::PREFAB)
 		{
 			PrefabEntity* pent = (SCN::PrefabEntity*)ent;
+			if (pent->prefab)
+				storeNode(&pent->root, camera);
 		}
 		else if (ent->getType() == eEntityType::LIGHT)
 		{
@@ -74,16 +78,34 @@ void Renderer::setupScene()
 			lights.push_back(light);
 		}
 	}
+
+	std::sort(render_calls.begin(), render_calls.end(), SCN::RenderCall::CompareAlphaAndDistance);
+
+
+	generateShadowmaps();
+
 }
 
 
 void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 {
 	this->scene = scene;
-	setupScene();
+	setupScene(camera);
 
+	//renderFrameCall(scene, camera);
+
+	//debug
+	if (show_shadowmaps)
+		debugShadowmaps();
+}
+
+void Renderer::renderFrame(SCN::Scene* scene, Camera* camera)
+{
 	glDisable(GL_BLEND);
 	glEnable(GL_DEPTH_TEST);
+
+	//set the camera as default (used by some functions in the framework)
+	camera->enable();
 
 	//set the clear color (the background color)
 	glClearColor(scene->background_color.x, scene->background_color.y, scene->background_color.z, 1.0);
@@ -93,15 +115,14 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 	GFX::checkGLErrors();
 
 	//render skybox
-	if(skybox_cubemap)
+	if (skybox_cubemap)
 		renderSkybox(skybox_cubemap);
 
-	render_calls.clear();
 	//render entities
 	for (int i = 0; i < scene->entities.size(); ++i)
 	{
 		BaseEntity* ent = scene->entities[i];
-		if (!ent->visible )
+		if (!ent->visible)
 			continue;
 
 		//is a prefab!
@@ -109,22 +130,41 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 		{
 			PrefabEntity* pent = (SCN::PrefabEntity*)ent;
 			if (pent->prefab)
-				renderNode( &pent->root, camera);
+				renderNode(&pent->root, camera);
 		}
 	}
+}
 
-	
-	std::sort(render_calls.begin(), render_calls.end(), SCN::RenderCall::CompareAlphaAndDistance);
+
+void Renderer::renderFrameCall(SCN::Scene* scene, Camera* camera) {
+
+	glDisable(GL_BLEND);
+	glEnable(GL_DEPTH_TEST);
+
+	//set the camera as default (used by some functions in the framework)
+	camera->enable();
+
+	//set the clear color (the background color)
+	glClearColor(scene->background_color.x, scene->background_color.y, scene->background_color.z, 1.0);
+
+	// Clear the color and the depth buffer
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	GFX::checkGLErrors();
+
+	//render skybox
+	if (skybox_cubemap)
+		renderSkybox(skybox_cubemap);
 	
 	for (int i = 0; i < render_calls.size(); i++) {
 		switch (render_mode)
 		{
-			case eRenderMode::FLAT: renderMeshWithMaterial(render_calls[i].model, render_calls[i].mesh, render_calls[i].material); break;
-			case eRenderMode::MULTIPASS: renderMeshWithMaterialMultiPass(render_calls[i].model, render_calls[i].mesh, render_calls[i].material); break;
-			case eRenderMode::SINGLEPASS:renderMeshWithMaterialSinglePass(render_calls[i].model, render_calls[i].mesh, render_calls[i].material); break;
+		case eRenderMode::FLAT: renderMeshWithMaterial(render_calls[i].model, render_calls[i].mesh, render_calls[i].material); break;
+		case eRenderMode::MULTIPASS: renderMeshWithMaterialMultiPass(render_calls[i].model, render_calls[i].mesh, render_calls[i].material); break;
+		case eRenderMode::SINGLEPASS:renderMeshWithMaterialSinglePass(render_calls[i].model, render_calls[i].mesh, render_calls[i].material); break;
 		}
 	}
 }
+
 
 
 void Renderer::renderSkybox(GFX::Texture* cubemap)
@@ -167,14 +207,42 @@ void Renderer::renderNode(SCN::Node* node, Camera* camera)
 	if (node->mesh && node->material)
 	{
 		//compute the bounding box of the object in world space (by using the mesh bounding box transformed to world space)
-		BoundingBox world_bounding = transformBoundingBox(node_model,node->mesh->box);
-		
+		BoundingBox world_bounding = transformBoundingBox(node_model, node->mesh->box);
+
 		//if bounding box is inside the camera frustum then the object is probably visible
-		if (camera->testBoxInFrustum(world_bounding.center, world_bounding.halfsize) )
+		if (camera->testBoxInFrustum(world_bounding.center, world_bounding.halfsize))
 		{
-			if(render_boundaries)
+			if (render_boundaries)
 				node->mesh->renderBounding(node_model, true);
-			
+			renderMeshWithMaterial(node_model, node->mesh, node->material);
+		}
+	}
+
+	//iterate recursively with children
+	for (int i = 0; i < node->children.size(); ++i)
+		renderNode(node->children[i], camera);
+}
+//renders a node of the prefab and its children
+void Renderer::storeNode(SCN::Node* node, Camera* camera)
+{
+	if (!node->visible)
+		return;
+
+	//compute global matrix
+	Matrix44 node_model = node->getGlobalMatrix(true);
+
+	//does this node have a mesh? then we must render it
+	if (node->mesh && node->material)
+	{
+		//compute the bounding box of the object in world space (by using the mesh bounding box transformed to world space)
+		BoundingBox world_bounding = transformBoundingBox(node_model, node->mesh->box);
+
+		//if bounding box is inside the camera frustum then the object is probably visible
+		if (camera->testBoxInFrustum(world_bounding.center, world_bounding.halfsize))
+		{
+			if (render_boundaries)
+				node->mesh->renderBounding(node_model, true);
+
 			//instead of render, we store it
 			//renderMeshWithMaterial(node_model, node->mesh, node->material);
 			SCN::RenderCall rc;
@@ -189,8 +257,9 @@ void Renderer::renderNode(SCN::Node* node, Camera* camera)
 
 	//iterate recursively with children
 	for (int i = 0; i < node->children.size(); ++i)
-		renderNode( node->children[i], camera);
+		storeNode(node->children[i], camera);
 }
+
 
 //renders a mesh given its transform and material
 void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material)
@@ -499,6 +568,67 @@ void SCN::Renderer::renderMeshWithMaterialSinglePass(const Matrix44 model, GFX::
 
 }
 
+void SCN::Renderer::generateShadowmaps()
+{
+	Camera camera;
+
+	for (auto light : lights) 
+	{
+		if (!light->cast_shadows)
+			continue;
+
+		if (light->light_type != eLightType::SPOT)
+			continue;
+
+		// check if light inside camera
+		// TODO
+
+		if(!light->shadowmap_fbo)
+		{
+			light->shadowmap_fbo = new GFX::FBO();
+			light->shadowmap_fbo->setDepthOnly(1024, 1024);
+			light->shadowmap = light->shadowmap_fbo->depth_texture;
+		}
+
+		vec3 pos = light->root.model.getTranslation();
+		vec3 front = light->root.model.rotateVector(vec3(0, 0, -1));
+		vec3 up = vec3(0, 1, 0);
+
+		vec3 cross = up.cross(front);
+		if (cross.x == 0.0 && cross.y == 0.0 && cross.z == 0.0)
+			up = vec3(1, 0, 0);
+		
+		camera.lookAt(pos, pos + front, up);
+		camera.setPerspective(light->cone_info.y, 1.0, light->near_distance, light->max_distance);
+		
+		//light->shadowmap_fbo->bind();
+
+		renderFrame(scene, &camera);
+
+		//light->shadowmap_fbo->unbind();
+
+		light->shadow_viewproj = camera.projection_matrix;
+	}
+}
+
+void SCN::Renderer::debugShadowmaps()
+{
+	glDisable(GL_DEPTH_TEST);
+	glDisable(GL_BLEND);
+
+	for (auto light : lights)
+	{
+		if (!light->shadowmap)
+			continue;
+
+		GFX::Shader* shader = GFX::Shader::getDefaultShader("linear_depth");
+		shader->enable();
+		shader->setUniform("u_camera_near", vec2(light->near_distance, light->max_distance));
+		light->shadowmap->toViewport(shader);
+	}
+
+}
+
 void SCN::Renderer::cameraToShader(Camera* camera, GFX::Shader* shader)
 {
 	shader->setUniform("u_viewprojection", camera->viewprojection_matrix );
@@ -513,7 +643,9 @@ void Renderer::showUI()
 	ImGui::Checkbox("Wireframe", &render_wireframe);
 	ImGui::Checkbox("Boundaries", &render_boundaries);
 
+
 	//add here your stuff
+	ImGui::Checkbox("Show Shadowmaps", &show_shadowmaps);
 	ImGui::Combo("Render Mode", (int*)&render_mode, "FLAT\0MULTIPASS\0SINGLEPASS", 2);
 
 }
