@@ -47,6 +47,7 @@ Renderer::Renderer(const char* shader_atlas_filename)
 	GFX::checkGLErrors();
 
 	sphere.createSphere(1.0f);
+	sphere.uploadToVRAM();
 }
 
 void Renderer::setupScene(Camera* camera)
