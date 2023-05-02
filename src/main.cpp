@@ -26,7 +26,7 @@ int main(int argc, char **argv)
 
 	//define window size
 	bool fullscreen = false; 
-	Vector2f size(1024,768);
+	Vector2f size(1024,600);
 	if(fullscreen)
 		size = CORE::getDesktopSize(0);
 

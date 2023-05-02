@@ -4,7 +4,7 @@
 
 #include "camera.h"
 #include "../gfx/gfx.h"
-#include "../gfx/shader.h"
+//#include "../gfx/shader.h"
 #include "../gfx/mesh.h"
 #include "../gfx/texture.h"
 #include "../gfx/fbo.h"
@@ -38,7 +38,8 @@ Renderer::Renderer(const char* shader_atlas_filename)
 	render_wireframe = false;
 	render_boundaries = false;
 	show_shadowmaps = false;
-	render_mode = eRenderMode::SINGLEPASS;
+	show_specular = false;
+	render_mode = eRenderMode::MULTIPASS;
 	scene = nullptr;
 	skybox_cubemap = nullptr;
 
@@ -93,7 +94,7 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 	this->scene = scene;
 	setupScene(camera);
 
-	//renderFrameCall(scene, camera);
+	renderFrameCall(scene, camera);
 
 	//debug
 	if (show_shadowmaps)
@@ -116,8 +117,9 @@ void Renderer::renderFrame(SCN::Scene* scene, Camera* camera)
 	GFX::checkGLErrors();
 
 	//render skybox
-	if (skybox_cubemap)
+	if (skybox_cubemap && render_mode != eRenderMode::FLAT)
 		renderSkybox(skybox_cubemap);
+	
 
 	//render entities
 	for (int i = 0; i < scene->entities.size(); ++i)
@@ -153,13 +155,14 @@ void Renderer::renderFrameCall(SCN::Scene* scene, Camera* camera) {
 	GFX::checkGLErrors();
 
 	//render skybox
-	if (skybox_cubemap)
+	if (skybox_cubemap && render_mode != eRenderMode::FLAT)
 		renderSkybox(skybox_cubemap);
 	
 	for (int i = 0; i < render_calls.size(); i++) {
 		switch (render_mode)
 		{
-		case eRenderMode::FLAT: renderMeshWithMaterial(render_calls[i].model, render_calls[i].mesh, render_calls[i].material); break;
+		case eRenderMode::FLAT: renderMeshWithMaterialFlat(render_calls[i].model, render_calls[i].mesh, render_calls[i].material); break;
+		case eRenderMode::TEXTURED: renderMeshWithMaterial(render_calls[i].model, render_calls[i].mesh, render_calls[i].material); break;
 		case eRenderMode::MULTIPASS: renderMeshWithMaterialMultiPass(render_calls[i].model, render_calls[i].mesh, render_calls[i].material); break;
 		case eRenderMode::SINGLEPASS:renderMeshWithMaterialSinglePass(render_calls[i].model, render_calls[i].mesh, render_calls[i].material); break;
 		}
@@ -215,7 +218,15 @@ void Renderer::renderNode(SCN::Node* node, Camera* camera)
 		{
 			if (render_boundaries)
 				node->mesh->renderBounding(node_model, true);
-			renderMeshWithMaterial(node_model, node->mesh, node->material);
+			//renderMeshWithMaterialFlat(node_model, node->mesh, node->material);
+
+			switch (render_mode)
+			{
+			case eRenderMode::FLAT: renderMeshWithMaterialFlat(node_model, node->mesh, node->material); break;
+			case eRenderMode::TEXTURED: renderMeshWithMaterial(node_model, node->mesh, node->material); break;
+			case eRenderMode::MULTIPASS: renderMeshWithMaterialMultiPass(node_model, node->mesh, node->material); break;
+			case eRenderMode::SINGLEPASS:renderMeshWithMaterialSinglePass(node_model, node->mesh, node->material); break;
+			}
 		}
 	}
 
@@ -223,7 +234,7 @@ void Renderer::renderNode(SCN::Node* node, Camera* camera)
 	for (int i = 0; i < node->children.size(); ++i)
 		renderNode(node->children[i], camera);
 }
-//renders a node of the prefab and its children
+//store a node of the prefab and its children
 void Renderer::storeNode(SCN::Node* node, Camera* camera)
 {
 	if (!node->visible)
@@ -261,7 +272,56 @@ void Renderer::storeNode(SCN::Node* node, Camera* camera)
 		storeNode(node->children[i], camera);
 }
 
+void Renderer::renderMeshWithMaterialFlat(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material)
+{
+	//in case there is nothing to do
+	if (!mesh || !mesh->getNumVertices() || !material)
+		return;
+	assert(glGetError() == GL_NO_ERROR);
 
+	//define locals to simplify coding
+	GFX::Shader* shader = NULL;
+	Camera* camera = Camera::current;
+
+	//select the blending
+	if (material->alpha_mode == SCN::eAlphaMode::BLEND)
+		return;
+	
+	glDisable(GL_BLEND);
+
+	//select if render both sides of the triangles
+	if (material->two_sided)
+		glDisable(GL_CULL_FACE);
+	else
+		glEnable(GL_CULL_FACE);
+	assert(glGetError() == GL_NO_ERROR);
+
+	glEnable(GL_DEPTH_TEST);
+
+	//chose a shader
+	shader = GFX::Shader::Get("flat");
+
+	assert(glGetError() == GL_NO_ERROR);
+
+	//no shader? then nothing to render
+	if (!shader)
+		return;
+	shader->enable();
+
+	//upload uniforms
+	shader->setUniform("u_model", model);
+	cameraToShader(camera, shader);
+	
+	//this is used to say which is the alpha threshold to what we should not paint a pixel on the screen (to cut polygons according to texture alpha)
+	//shader->setUniform("u_alpha_cutoff", material->alpha_mode == SCN::eAlphaMode::MASK ? material->alpha_cutoff : 0.001f);
+
+	//do the draw call that renders the mesh into the screen
+	mesh->render(GL_TRIANGLES);
+
+	//disable shader
+	shader->disable();
+
+}
 //renders a mesh given its transform and material
 void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material)
 {
@@ -350,16 +410,7 @@ void SCN::Renderer::renderMeshWithMaterialMultiPass(const Matrix44 model, GFX::M
 	GFX::Shader* shader = NULL;
 	Camera* camera = Camera::current;
 
-	GFX::Texture* white = GFX::Texture::getWhiteTexture(); //a 1x1 white texture that we can use when other textures are null;
 	
-	GFX::Texture* albedo_texture = material->textures[SCN::eTextureChannel::ALBEDO].texture;
-	GFX::Texture* emissive_texture = material->textures[SCN::eTextureChannel::EMISSIVE].texture;
-	//texture = material->metallic_roughness_texture;
-	//texture = material->normal_texture;
-	//texture = material->occlusion_texture;
-	if (albedo_texture == NULL)
-		albedo_texture = white; 
-
 	//select the blending
 	if (material->alpha_mode == SCN::eAlphaMode::BLEND)
 	{
@@ -394,43 +445,64 @@ void SCN::Renderer::renderMeshWithMaterialMultiPass(const Matrix44 model, GFX::M
 	float t = getTime();
 	shader->setUniform("u_time", t);
 
-	shader->setUniform("u_color", material->color);
+
+	uplodadMaterialUniforms(shader, material);
 	
-	shader->setUniform("u_emissive_factor", material->emissive_factor);  //is a vector 3 (not a factor)
-	shader->setUniform("u_albedo_texture", albedo_texture ? albedo_texture : white, 0);
-	shader->setUniform("u_emissive_texture", emissive_texture ? emissive_texture : white, 1);
-
-
-	//this is used to say which is the alpha threshold to what we should not paint a pixel on the screen (to cut polygons according to texture alpha)
-	shader->setUniform("u_alpha_cutoff", material->alpha_mode == SCN::eAlphaMode::MASK ? material->alpha_cutoff : 0.001f);
-
-	shader->setUniform("u_ambient_light", scene->ambient_light);
-
-
+	
 	if (render_wireframe)
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 	
 	glDepthFunc(GL_LEQUAL);  //Render if the z is less or equal than the current one
 
-	
-	if (lights.size() == 0) 
+	// lights
+	shader->setUniform("u_ambient_light", scene->ambient_light);
+	shader->setUniform("u_show_specular", show_specular);
+
+	visibleLights.clear();
+
+	for (int i = 0; i < lights.size(); i++)
 	{
-		shader->setUniform("u_light_type", 0);
+		LightEntity* light = lights[i];
+
+		if(light->light_type == eLightType::DIRECTIONAL)
+			visibleLights.push_back(light);
+		else
+		{
+			vec3 center = light->root.model.getTranslation();
+			float radius = light->max_distance;
+
+			BoundingBox world_bounding = transformBoundingBox(model, mesh->box);
+
+			if (BoundingBoxSphereOverlap(world_bounding, center, radius) )
+				visibleLights.push_back(light);
+		}
+	}
+
+
+	if (visibleLights.size() == 0)
+	{
+		shader->setUniform("u_light_info", vec4((int) eLightType::NO_LIGHT, 0, 0, 0));
 		mesh->render(GL_TRIANGLES);
 
 	}
 	else
 	{
-		for (int i = 0; i < lights.size(); i++) 
+		for (int i = 0; i < visibleLights.size(); i++)
 		{
-			LightEntity* light = lights[i];
+			LightEntity* light = visibleLights[i];
 			shader->setUniform("u_light_position", light->root.model.getTranslation());
 			shader->setUniform("u_light_front", light->root.model.rotateVector(vec3(0,0,1)) ); //we pass the forward vector  
 			shader->setUniform("u_light_color", light->color * light->intensity);
-			//shader->setUniform("u_light_type", (int)light->light_type);
-			//shader->setUniform("u_light_max_distance", light->max_distance);
 			shader->setUniform("u_light_info",vec4((int)light->light_type, light->near_distance, light->max_distance, 0));
+
+			shader->setUniform("u_shadow_params", vec2((light->shadowmap && light->cast_shadows) ? 1:0, light->shadow_bias));
+			if (light->shadowmap && light->cast_shadows)
+			{
+				shader->setTexture("u_shadowmap", light->shadowmap, 8);
+				shader->setUniform("u_shadow_viewproj", light->shadow_viewproj);
+
+			}
 
 			if (light->light_type == eLightType::SPOT )
 				shader->setUniform("u_light_cone", vec2( cos( light->cone_info.x * DEG2RAD ), cos(light->cone_info.y * DEG2RAD)));
@@ -471,15 +543,6 @@ void SCN::Renderer::renderMeshWithMaterialSinglePass(const Matrix44 model, GFX::
 	GFX::Texture* texture = NULL;
 	Camera* camera = Camera::current;
 
-	GFX::Texture* white = GFX::Texture::getWhiteTexture(); //a 1x1 white texture that we can use when other textures are null;
-
-	GFX::Texture* albedo_texture = material->textures[SCN::eTextureChannel::ALBEDO].texture;
-	GFX::Texture* emissive_texture = material->textures[SCN::eTextureChannel::EMISSIVE].texture;
-	//texture = material->metallic_roughness_texture;
-	//texture = material->normal_texture;
-	//texture = material->occlusion_texture;
-	if (albedo_texture == NULL)
-		albedo_texture = white;
 
 
 	//select the blending
@@ -516,16 +579,12 @@ void SCN::Renderer::renderMeshWithMaterialSinglePass(const Matrix44 model, GFX::
 	float t = getTime();
 	shader->setUniform("u_time", t);
 
-	shader->setUniform("u_color", material->color);
+	uplodadMaterialUniforms(shader, material);
 
-	shader->setUniform("u_emissive_factor", material->emissive_factor);  //is a vector 3 (not a factor)
-	shader->setUniform("u_albedo_texture", albedo_texture ? albedo_texture : white, 0);
-	shader->setUniform("u_emissive_texture", emissive_texture ? emissive_texture : white, 1);
 
-	//this is used to say which is the alpha threshold to what we should not paint a pixel on the screen (to cut polygons according to texture alpha)
-	shader->setUniform("u_alpha_cutoff", material->alpha_mode == SCN::eAlphaMode::MASK ? material->alpha_cutoff : 0.001f);
-
+	//Lights
 	shader->setUniform("u_ambient_light", scene->ambient_light);
+	shader->setUniform("u_show_specular", show_specular);
 
 	Vector3f light_position[MAX_LIGHTS];
 	Vector3f light_color[MAX_LIGHTS];
@@ -569,16 +628,45 @@ void SCN::Renderer::renderMeshWithMaterialSinglePass(const Matrix44 model, GFX::
 
 }
 
+void SCN::Renderer::uplodadMaterialUniforms(GFX::Shader* shader, Material* material)
+{
+	GFX::Texture* white = GFX::Texture::getWhiteTexture(); //a 1x1 white texture that we can use when other textures are null;
+
+	GFX::Texture* albedo_texture = material->textures[SCN::eTextureChannel::ALBEDO].texture;
+	GFX::Texture* emissive_texture = material->textures[SCN::eTextureChannel::EMISSIVE].texture;
+	GFX::Texture* metalic_roughness_texture = material->textures[SCN::eTextureChannel::METALLIC_ROUGHNESS].texture;
+	GFX::Texture* normalmap_texture = material->textures[SCN::eTextureChannel::NORMALMAP].texture;
+
+	shader->setUniform("u_color", material->color);
+	shader->setUniform("u_emissive_factor", material->emissive_factor);  //is a vector 3 (not a factor)
+	shader->setUniform("u_albedo_texture", albedo_texture ? albedo_texture : white, 0);
+	shader->setUniform("u_emissive_texture", emissive_texture ? emissive_texture : white, 1);
+	shader->setUniform("u_metalic_roughness_texture", metalic_roughness_texture ? metalic_roughness_texture : white, 2);  //TODO check white texture
+	shader->setUniform("u_normalmap", normalmap_texture ? normalmap_texture : white, 3);
+
+
+	//this is used to say which is the alpha threshold to what we should not paint a pixel on the screen (to cut polygons according to texture alpha)
+	shader->setUniform("u_alpha_cutoff", material->alpha_mode == SCN::eAlphaMode::MASK ? material->alpha_cutoff : 0.001f);
+
+}
+
+
+
 void SCN::Renderer::generateShadowmaps()
 {
 	Camera camera;
+
+	GFX::startGPULabel("Shadowmaps");
+
+	eRenderMode prev = render_mode;
+	render_mode = eRenderMode::FLAT;
 
 	for (auto light : lights) 
 	{
 		if (!light->cast_shadows)
 			continue;
 
-		if (light->light_type != eLightType::SPOT)
+		if (light->light_type == eLightType::POINT || light->light_type == eLightType::NO_LIGHT )
 			continue;
 
 		// check if light inside camera
@@ -600,16 +688,31 @@ void SCN::Renderer::generateShadowmaps()
 			up = vec3(1, 0, 0);
 		
 		camera.lookAt(pos, pos + front, up);
-		camera.setPerspective(light->cone_info.y, 1.0, light->near_distance, light->max_distance);
+
+		if (light->light_type == eLightType::SPOT)
+			camera.setPerspective(light->cone_info.y * 2, 1.0, light->near_distance, light->max_distance);
 		
-		//light->shadowmap_fbo->bind();
+		if(light->light_type == eLightType::DIRECTIONAL)
+		{
+			//use light area to define how big the frustum is
+			float halfarea = light->area / 2;
+
+			camera.setOrthographic(-halfarea, halfarea, halfarea , -halfarea, 0.1, light->max_distance);
+		}
+
+		light->shadowmap_fbo->bind();
 
 		renderFrame(scene, &camera);
 
-		//light->shadowmap_fbo->unbind();
+		light->shadowmap_fbo->unbind();
 
-		light->shadow_viewproj = camera.projection_matrix;
+		light->shadow_viewproj = camera.viewprojection_matrix;
 	}
+
+	render_mode = prev;
+
+	GFX::endGPULabel();
+
 }
 
 void SCN::Renderer::debugShadowmaps()
@@ -617,6 +720,7 @@ void SCN::Renderer::debugShadowmaps()
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_BLEND);
 
+	int x = 310;
 	for (auto light : lights)
 	{
 		if (!light->shadowmap)
@@ -624,9 +728,14 @@ void SCN::Renderer::debugShadowmaps()
 
 		GFX::Shader* shader = GFX::Shader::getDefaultShader("linear_depth");
 		shader->enable();
-		shader->setUniform("u_camera_near", vec2(light->near_distance, light->max_distance));
+		shader->setUniform("u_camera_nearfar", vec2(light->near_distance, light->max_distance));
+		glViewport(x, 100, 256, 256);
 		light->shadowmap->toViewport(shader);
+		x += 260;
 	}
+
+	vec2 size = CORE::getWindowSize();
+	glViewport(0, 0, size.x, size.y);
 
 }
 
@@ -647,7 +756,9 @@ void Renderer::showUI()
 
 	//add here your stuff
 	ImGui::Checkbox("Show Shadowmaps", &show_shadowmaps);
-	ImGui::Combo("Render Mode", (int*)&render_mode, "FLAT\0MULTIPASS\0SINGLEPASS", 2);
+	ImGui::Checkbox("Show Specular", &show_specular);
+
+	ImGui::Combo("Render Mode", (int*)&render_mode, "FLAT\0TEXTURED\0MULTIPASS\0SINGLEPASS", 4);
 
 }
 

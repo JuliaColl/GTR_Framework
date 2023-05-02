@@ -1,6 +1,7 @@
 #pragma once
 #include "scene.h"
 #include "prefab.h"
+#include "../gfx/shader.h"
 
 #include "light.h"
 
@@ -32,6 +33,7 @@ namespace SCN {
 
 	enum eRenderMode{
 		FLAT,
+		TEXTURED,
 		MULTIPASS,
 		SINGLEPASS
 	};
@@ -44,6 +46,7 @@ namespace SCN {
 		bool render_wireframe;
 		bool render_boundaries;
 		bool show_shadowmaps;
+		bool show_specular;
 		eRenderMode render_mode;
 
 		GFX::Texture* skybox_cubemap;
@@ -79,8 +82,11 @@ namespace SCN {
 
 		//to render one mesh given its material and transformation matrix
 		void renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
+		void renderMeshWithMaterialFlat(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
 		void renderMeshWithMaterialMultiPass(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
 		void renderMeshWithMaterialSinglePass(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
+
+		void uplodadMaterialUniforms(GFX::Shader* shader, Material* material);
 
 		void generateShadowmaps();
 		void debugShadowmaps(); 
